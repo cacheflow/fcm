@@ -207,6 +207,15 @@ describe FCM do
       )
       stub_fcm_send_to_topic_request.should have_been_made.times(1)
     end
+
+    context "when topic is invalid" do
+      let(:topic) { '/topics/news$' }
+
+      it 'should raise error' do
+        client.send_to_topic(topic, options)
+        stub_fcm_send_to_topic_request.should_not have_been_requested
+      end
+    end
   end
 
   describe "#send_to_topic_condition" do
