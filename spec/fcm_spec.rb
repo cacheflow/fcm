@@ -41,6 +41,7 @@ describe FCM do
     let(:client) { FCM.new(json_key_path, project_name) }
 
     let(:uri) { "#{FCM::BASE_URI_V1}#{project_name}/messages:send" }
+    let(:status_code) { 200 }
 
     let(:stub_fcm_send_v1_request) do
       stub_request(:post, uri).with(
@@ -50,7 +51,7 @@ describe FCM do
         # ref: https://firebase.google.com/docs/cloud-messaging/http-server-ref#interpret-downstream
         body: "{}",
         headers: {},
-        status: 200,
+        status: status_code,
       )
     end
 
@@ -58,7 +59,7 @@ describe FCM do
       stub_fcm_send_v1_request
     end
 
-    shared_examples "succesfuly send notification" do
+    shared_examples 'succesfuly send notification' do
       it 'should send notification of HTTP V1 using POST to FCM server' do
         client.send_v1(send_v1_params).should eq(
           response: 'success', body: '{}', headers: {}, status_code: 200
@@ -67,7 +68,7 @@ describe FCM do
       end
     end
 
-    describe "send to token" do
+    describe 'send to token' do
       let(:token) { '4sdsx' }
       let(:send_v1_params) do
         {
@@ -95,10 +96,20 @@ describe FCM do
         }
       end
 
-      include_examples "succesfuly send notification"
+      include_examples 'succesfuly send notification'
+
+      it 'includes all the response' do
+        response = client.send_v1(send_v1_params)
+        expect(response[:status_code]).to eq(status_code)
+        expect(response[:response]).to eq('success')
+        expect(response[:body]).to eq('{}')
+        expect(response[:headers]).to eq({})
+        expect(response[:canonical_ids]).to be_nil
+        expect(response[:not_registered_ids]).to be_nil
+      end
     end
 
-    describe "send to multiple tokens" do
+    describe 'send to multiple tokens' do
       let(:tokens) { ['4sdsx', '4sdsy'] }
       let(:send_v1_params) do
         {
@@ -113,7 +124,7 @@ describe FCM do
       include_examples 'succesfuly send notification'
     end
 
-    describe "send to topic" do
+    describe 'send to topic' do
       let(:topic) { 'news' }
       let(:send_v1_params) do
         {
@@ -125,9 +136,9 @@ describe FCM do
         }
       end
 
-      include_examples "succesfuly send notification"
+      include_examples 'succesfuly send notification'
 
-      context "when topic is invalid" do
+      context 'when topic is invalid' do
         let(:topic) { '/topics/news$' }
 
         it 'should raise error' do
@@ -136,7 +147,7 @@ describe FCM do
       end
     end
 
-    describe "send to condition" do
+    describe 'send to condition' do
       let(:condition) { "'foo' in topics" }
       let(:send_v1_params) do
         {
@@ -148,10 +159,10 @@ describe FCM do
         }
       end
 
-      include_examples "succesfuly send notification"
+      include_examples 'succesfuly send notification'
     end
 
-    describe "send to notification_key" do
+    describe 'send to notification_key' do
       let(:notification_key) { 'notification_key' }
       let(:send_v1_params) do
         {
@@ -163,11 +174,81 @@ describe FCM do
         }
       end
 
-      include_examples "succesfuly send notification"
+      include_examples 'succesfuly send notification'
+    end
+
+    context 'when project_name is empty' do
+      let(:project_name) { '' }
+      let(:send_v1_params) do
+        {
+          'token' => '4sdsx',
+          'notification' => {
+            'title' => 'Breaking News',
+            'body' => 'New news story available.'
+          }
+        }
+      end
+
+      it 'should not send notification' do
+        client.send_v1(send_v1_params)
+        stub_fcm_send_v1_request.should_not have_been_requested
+      end
+    end
+
+    describe 'error handling' do
+      let(:send_v1_params) do
+        {
+          'token' => '4sdsx',
+          'notification' => {
+            'title' => 'Breaking News',
+            'body' => 'New news story available.'
+          }
+        }
+      end
+
+      context 'when status_code is 400' do
+        let(:status_code) { 400 }
+
+        it 'should raise error' do
+          response = client.send_v1(send_v1_params)
+          expect(response[:status_code]).to eq(status_code)
+          expect(response[:response]).to include('Only applies for JSON requests')
+        end
+      end
+
+      context 'when status_code is 401' do
+        let(:status_code) { 401 }
+
+        it 'should raise error' do
+          response = client.send_v1(send_v1_params)
+          expect(response[:status_code]).to eq(status_code)
+          expect(response[:response]).to include('There was an error authenticating')
+        end
+      end
+
+      context 'when status_code is 500' do
+        let(:status_code) { 500 }
+
+        it 'should raise error' do
+          response = client.send_v1(send_v1_params)
+          expect(response[:status_code]).to eq(status_code)
+          expect(response[:response]).to include('There was an internal error')
+        end
+      end
+
+      context 'when status_code is 503' do
+        let(:status_code) { 503 }
+
+        it 'should raise error' do
+          response = client.send_v1(send_v1_params)
+          expect(response[:status_code]).to eq(status_code)
+          expect(response[:response]).to include('Server is temporarily unavailable')
+        end
+      end
     end
   end
 
-  describe "#send_to_topic" do
+  describe '#send_to_topic' do
     let(:client) { FCM.new(json_key_path, project_name) }
 
     let(:uri) { "#{FCM::BASE_URI_V1}#{project_name}/messages:send" }
@@ -208,7 +289,7 @@ describe FCM do
       stub_fcm_send_to_topic_request.should have_been_made.times(1)
     end
 
-    context "when topic is invalid" do
+    context 'when topic is invalid' do
       let(:topic) { '/topics/news$' }
 
       it 'should raise error' do
@@ -257,6 +338,15 @@ describe FCM do
         response: 'success', body: '{}', headers: {}, status_code: 200
       )
       stub_fcm_send_to_topic_condition_request.should have_been_made.times(1)
+    end
+
+    context 'when topic_condition is invalid' do
+      let(:topic_condition) { "'foo' in topics$" }
+
+      it 'should raise error' do
+        client.send_to_topic_condition(topic_condition, options)
+        stub_fcm_send_to_topic_condition_request.should_not have_been_requested
+      end
     end
   end
 
