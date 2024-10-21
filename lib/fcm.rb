@@ -12,9 +12,10 @@ class FCM
   INSTANCE_ID_API = "https://iid.googleapis.com"
   TOPIC_REGEX = /[a-zA-Z0-9\-_.~%]+/
 
-  def initialize(json_key_path = "", project_name = "")
+  def initialize(json_key_path = "", project_name = "", http_options = {})
     @json_key_path = json_key_path
     @project_name = project_name
+    @http_options = http_options
   end
 
   # See https://firebase.google.com/docs/cloud-messaging/send-message
@@ -192,7 +193,7 @@ class FCM
   def for_uri(uri, extra_headers = {})
     connection = ::Faraday.new(
       url: uri,
-      request: { timeout: DEFAULT_TIMEOUT }
+      request: { timeout: @http_options.fetch(:timeout, DEFAULT_TIMEOUT) }
     ) do |faraday|
       faraday.adapter Faraday.default_adapter
       faraday.headers["Content-Type"] = "application/json"
