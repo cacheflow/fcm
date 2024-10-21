@@ -274,6 +274,9 @@ The guide to set up an iOS app to get notifications is here: [Setting up a FCM C
 
 ## ChangeLog
 
+### 2.0.1
+- Add `http_options` to `initialize` method and whitelist `timeout` option
+
 ### 2.0.0
 #### Breaking Changes
 - Remove deprecated `API_KEY`
