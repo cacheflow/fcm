@@ -13,18 +13,33 @@ describe FCM do
     }
   end
 
+  let(:client_email) do
+    '83315528762cf7e0-7bbcc3aad87e0083391bc7f234d487' \
+    'c8@developer.gserviceaccount.com'
+  end
+
+  let(:client_x509_cert_url) do
+    'https://www.googleapis.com/robot/v1/metadata/x509/' \
+    'fd6b61037dd2bb8585527679" + "-7bbcc3aad87e0083391b' \
+    'c7f234d487c8%40developer.gserviceaccount.com'
+  end
+
+  let(:creds_error) do
+    FCM::InvalidCredentialError
+  end
+
   let(:json_credentials) do
     {
       "type": 'service_account',
       "project_id": 'example',
       "private_key_id": 'c09c4593eee53707ca9f4208fbd6fe72b29fc7ab',
       "private_key": OpenSSL::PKey::RSA.new(2048),
-      "client_email": '83315528762cf7e0-7bbcc3aad87e0083391bc7f234d487c8@developer.gserviceaccount.com',
-      "client_id": 'acedc3c0a63b3562376386f0-f3b94aafbecd0e7d60563bf7bb8bb47f.apps.googleusercontent.com',
+      "client_email": client_email,
+      "client_id": 'acedc3c0a63b3562376386f0.apps.googleusercontent.com',
       "auth_uri": 'https://accounts.google.com/o/oauth2/auth',
       "token_uri": 'https://oauth2.googleapis.com/token',
       "auth_provider_x509_cert_url": 'https://www.googleapis.com/oauth2/v1/certs',
-      "client_x509_cert_url": 'https://www.googleapis.com/robot/v1/metadata/x509/fd6b61037dd2bb8585527679-7bbcc3aad87e0083391bc7f234d487c8%40developer.gserviceaccount.com',
+      "client_x509_cert_url": client_x509_cert_url,
       "universe_domain": 'googleapis.com'
     }.to_json
   end
@@ -42,35 +57,34 @@ describe FCM do
   end
 
   describe "credentials path" do
-    it "can be a path to a file" do
+    it 'can be a path to a file' do
       fcm = FCM.new("README.md")
       expect(fcm.__send__(:json_key).class).to eq(File)
     end
 
-    it "can be an IO object" do
-      fcm = FCM.new(StringIO.new("hey"))
+    it 'can be an IO object' do
+      fcm = FCM.new(StringIO.new('hey'))
       expect(fcm.__send__(:json_key).class).to eq(StringIO)
     end
 
-    it "raises an error when passed a non-existent credentials file path" do
-      fcm = FCM.new('spec/fake_credentials.json', '', {})
-      expect { fcm.__send__(:json_key).class }.to raise_error(FCM::InvalidCredentialError)
-    end
-
-    it "raises an error when passed a string of a file that does not exist" do
-      fcm = FCM.new("fake_credentials.json", '', {})
-      expect { fcm.__send__(:json_key).class }.to raise_error(FCM::InvalidCredentialError)
-    end
-
     it 'raises an error when passed a non IO-like object' do
-      fcm_with_non_io_objects = [
-        fcm_with_nil_creds = FCM.new(nil, '', {}),
-        fcm_with_hash_creds = FCM.new({}, '', {}),
-        fcm_with_json = FCM.new(json_credentials, '', {})
-      ]
-      fcm_with_non_io_objects.each do |fcm_with_non_io_object|
-        expect { fcm_with_non_io_object.__send__(:json_key).class }.to raise_error(FCM::InvalidCredentialError)
+      [
+        FCM.new(nil, '', {}),
+        FCM.new({}, '', {}),
+        FCM.new(json_credentials, '', {})
+      ].each do |fcm|
+        expect { fcm.__send__(:json_key) }.to raise_error(creds_error)
       end
+    end
+
+    it 'raises an error when passed a non-existent credentials file path' do
+      fcm = FCM.new('spec/fake_credentials.json', '', {})
+      expect { fcm.__send__(:json_key) }.to raise_error(creds_error)
+    end
+
+    it 'raises an error when passed a string of a file that does not exist' do
+      fcm = FCM.new('fake_credentials.json', '', {})
+      expect { fcm.__send__(:json_key) }.to raise_error(creds_error)
     end
   end
 
