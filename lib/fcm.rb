@@ -302,7 +302,7 @@ class FCM
     raise InvalidCredentialError, error_msg
   end
 
-  def open_json_key_path?(path)
+  def valid_json_key_path?(path)
     valid_io_object = path.respond_to?(:open)
     return true if valid_io_object && File.file?(path)
 
@@ -314,7 +314,7 @@ class FCM
   def json_key
     @json_key ||= if @json_key_path.respond_to?(:read)
                     @json_key_path
-                  elsif open_json_key_path?(@json_key_path)
+                  elsif valid_json_key_path?(@json_key_path)
                     File.open(@json_key_path)
                   else
                     credentials_error_msg(@json_key_path)
