@@ -1,4 +1,5 @@
 require "spec_helper"
+require 'tempfile'
 
 describe FCM do
   let(:project_name) { 'test-project' }
@@ -24,6 +25,10 @@ describe FCM do
     'c7f234d487c8%40developer.gserviceaccount.com'
   end
 
+  let(:large_file_name) do
+    Array.new(1021) { 'a' }.join('') + '.txt'
+  end
+
   let(:creds_error) do
     FCM::InvalidCredentialError
   end
@@ -33,7 +38,7 @@ describe FCM do
       "type": 'service_account',
       "project_id": 'example',
       "private_key_id": 'c09c4593eee53707ca9f4208fbd6fe72b29fc7ab',
-      "private_key": OpenSSL::PKey::RSA.new(2048),
+      "private_key": OpenSSL::PKey::RSA.new(2048).to_s,
       "client_email": client_email,
       "client_id": 'acedc3c0a63b3562376386f0.apps.googleusercontent.com',
       "auth_uri": 'https://accounts.google.com/o/oauth2/auth',
@@ -62,19 +67,42 @@ describe FCM do
       expect(fcm.__send__(:json_key).class).to eq(File)
     end
 
+    it 'raises an error when passed a large path' do
+      expect do
+        FCM.new(large_file_name).__send__(:json_key)
+      end.to raise_error(creds_error)
+    end
+
     it 'can be an IO object' do
       fcm = FCM.new(StringIO.new('hey'))
       expect(fcm.__send__(:json_key).class).to eq(StringIO)
+
+      temp_file = Tempfile.new('hello_world.json')
+      temp_file.write(json_credentials)
+      fcm_with_temp_file = FCM.new(temp_file)
+
+      expect do
+        fcm_with_temp_file
+      end.not_to raise_error
+      temp_file.close
+      temp_file.unlink
     end
 
     it 'raises an error when passed a non IO-like object' do
-      [
-        FCM.new(nil, '', {}),
-        FCM.new({}, '', {}),
-        FCM.new(json_credentials, '', {})
-      ].each do |fcm|
-        expect { fcm.__send__(:json_key) }.to raise_error(creds_error)
-      end
+      expect do
+        FCM.new(nil, '', {}).__send__(:json_key)
+      end.to raise_error(creds_error, 'credentials must be' \
+      ' an IO-like object or path. You passed nil.')
+
+      expect do
+        FCM.new(json_credentials, '', {}).__send__(:json_key)
+      end.to raise_error(creds_error, 'credentials must be' \
+      ' an IO-like object or path. You passed a String.')
+
+      expect do
+        FCM.new({}, '', {}).__send__(:json_key)
+      end.to raise_error(creds_error, 'credentials must be' \
+      ' an IO-like object or path. You passed a Hash.')
     end
 
     it 'raises an error when passed a non-existent credentials file path' do
@@ -83,7 +111,7 @@ describe FCM do
     end
 
     it 'raises an error when passed a string of a file that does not exist' do
-      fcm = FCM.new('fake_credentials.json', '', {})
+      fcm = FCM.new('example.txt', '', {})
       expect { fcm.__send__(:json_key) }.to raise_error(creds_error)
     end
   end

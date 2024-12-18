@@ -295,20 +295,26 @@ class FCM
 
   def credentials_error_msg(param)
     error_msg = 'credentials must be an IO-like ' \
-      'object or path You passed '
+      'object or path. You passed'
 
-    error_msg += param.class.name.to_s
+    param_klass = param.nil? ? 'nil' : "a #{param.class.name}"
+    error_msg += " #{param_klass}."
     raise InvalidCredentialError, error_msg
   end
 
-  def filename_or_io_like?(path)
-    (path.is_a?(String) || path.respond_to?(:open)) && File.file?(path)
+  def open_json_key_path?(path)
+    valid_io_object = path.respond_to?(:open)
+    return true if valid_io_object && File.file?(path)
+
+    max_path_len = 1024
+    valid_path = path.is_a?(String) && path.length <= max_path_len
+    valid_path && File.file?(path)
   end
 
   def json_key
     @json_key ||= if @json_key_path.respond_to?(:read)
                     @json_key_path
-                  elsif filename_or_io_like?(@json_key_path)
+                  elsif open_json_key_path?(@json_key_path)
                     File.open(@json_key_path)
                   else
                     credentials_error_msg(@json_key_path)
