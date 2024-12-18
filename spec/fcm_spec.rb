@@ -13,15 +13,31 @@ describe FCM do
     }
   end
 
+  let(:json_credentials) do
+    {
+      "type": 'service_account',
+      "project_id": 'example',
+      "private_key_id": 'c09c4593eee53707ca9f4208fbd6fe72b29fc7ab',
+      "private_key": OpenSSL::PKey::RSA.new(2048),
+      "client_email": '83315528762cf7e0-7bbcc3aad87e0083391bc7f234d487c8@developer.gserviceaccount.com',
+      "client_id": 'acedc3c0a63b3562376386f0-f3b94aafbecd0e7d60563bf7bb8bb47f.apps.googleusercontent.com',
+      "auth_uri": 'https://accounts.google.com/o/oauth2/auth',
+      "token_uri": 'https://oauth2.googleapis.com/token',
+      "auth_provider_x509_cert_url": 'https://www.googleapis.com/oauth2/v1/certs',
+      "client_x509_cert_url": 'https://www.googleapis.com/robot/v1/metadata/x509/fd6b61037dd2bb8585527679-7bbcc3aad87e0083391bc7f234d487c8%40developer.gserviceaccount.com',
+      "universe_domain": 'googleapis.com'
+    }.to_json
+  end
+
   before do
     allow(client).to receive(:json_key)
 
     # Mock the Google::Auth::ServiceAccountCredentials
-    allow(Google::Auth::ServiceAccountCredentials).to receive(:make_creds).
-      and_return(double(fetch_access_token!: { 'access_token' => mock_token }))
+    allow(Google::Auth::ServiceAccountCredentials).to receive(:make_creds)
+      .and_return(double(fetch_access_token!: { 'access_token' => mock_token }))
   end
 
-  it "should initialize" do
+  it 'should initialize' do
     expect { client }.not_to raise_error
   end
 
@@ -34,6 +50,27 @@ describe FCM do
     it "can be an IO object" do
       fcm = FCM.new(StringIO.new("hey"))
       expect(fcm.__send__(:json_key).class).to eq(StringIO)
+    end
+
+    it "raises an error when passed a non-existent credentials file path" do
+      fcm = FCM.new('spec/fake_credentials.json', '', {})
+      expect { fcm.__send__(:json_key).class }.to raise_error(FCM::InvalidCredentialError)
+    end
+
+    it "raises an error when passed a string of a file that does not exist" do
+      fcm = FCM.new("fake_credentials.json", '', {})
+      expect { fcm.__send__(:json_key).class }.to raise_error(FCM::InvalidCredentialError)
+    end
+
+    it 'raises an error when passed a non IO-like object' do
+      fcm_with_non_io_objects = [
+        fcm_with_nil_creds = FCM.new(nil, '', {}),
+        fcm_with_hash_creds = FCM.new({}, '', {}),
+        fcm_with_json = FCM.new(json_credentials, '', {})
+      ]
+      fcm_with_non_io_objects.each do |fcm_with_non_io_object|
+        expect { fcm_with_non_io_object.__send__(:json_key).class }.to raise_error(FCM::InvalidCredentialError)
+      end
     end
   end
 
